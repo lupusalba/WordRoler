@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "language": "es",
+  "meta": { "rtl": false, "locale": "es-ES" },
+  "slots": [
+    {
+      "name": "SUBJ",
+      "display": "Sujeto",
+      "items": [
+        { "id": "subj-yo", "label": "yo", "emit": "yo", "features": { "person": "1", "number": "sg" } },
+        { "id": "subj-tu", "label": "tú", "emit": "tú", "features": { "person": "2", "number": "sg" } },
+        { "id": "subj-prodrop-1sg", "label": "—", "emit": null, "features": { "person": "1", "number": "sg", "prodrop": "true" } }
+      ]
+    },
+    {
+      "name": "VERB",
+      "display": "Verbo (presente)",
+      "items": [
+        { "id": "v-querer-1sg", "label": "quiero", "emit": "quiero", "features": { "lemma": "querer", "tense": "pres", "person": "1", "number": "sg" } },
+        { "id": "v-necesitar-1sg", "label": "necesito", "emit": "necesito", "features": { "lemma": "necesitar", "tense": "pres", "person": "1", "number": "sg" } },
+        { "id": "v-buscar-1sg", "label": "busco", "emit": "busco", "features": { "lemma": "buscar", "tense": "pres", "person": "1", "number": "sg" } }
+      ]
+    },
+    {
+      "name": "OBJ",
+      "display": "Objeto",
+      "items": [
+        { "id": "obj-un-cafe", "label": "un café", "emit": "un café", "features": { "gender": "m", "number": "sg" } },
+        { "id": "obj-el-libro", "label": "el libro", "emit": "el libro", "features": { "gender": "m", "number": "sg" } },
+        { "id": "obj-al-medico", "label": "al médico", "emit": "al médico", "features": { "prep": "a", "human": "true" } }
+      ]
+    },
+    {
+      "name": "REASON",
+      "display": "Razón",
+      "items": [
+        { "id": "r-para-estudiar", "label": "para estudiar", "emit": "para estudiar" },
+        { "id": "r-porque-cansado", "label": "porque estoy cansado", "emit": "porque estoy cansado" }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "row-001",
+      "pick": { "SUBJ": "subj-yo", "VERB": "v-querer-1sg", "OBJ": "obj-un-cafe", "REASON": "r-para-estudiar" },
+      "surface": "yo quiero un café para estudiar",
+      "ipa": "ʝo ˈkjeɾo uŋ kaˈfe paˈɾa estuˈðjaɾ"
+    },
+    {
+      "id": "row-002",
+      "pick": { "SUBJ": "subj-prodrop-1sg", "VERB": "v-necesitar-1sg", "OBJ": "obj-al-medico", "REASON": "r-porque-cansado" },
+      "surface": "necesito al médico porque estoy cansado"
+    },
+    {
+      "id": "row-003",
+      "pick": { "SUBJ": "subj-yo", "VERB": "v-buscar-1sg", "OBJ": "obj-el-libro", "REASON": "r-para-estudiar" },
+      "surface": "yo busco el libro para estudiar"
+    }
+  ]
+}
