@@ -1,10 +1,19 @@
-/** Bootstraps React app and global styles */
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from '@/app/App';
+// src/main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./app/App";
+import { ErrorBoundary } from "./components/dev/ErrorBoundary";
+import "./styles/globals.css";
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById("root");
+if (!root) {
+  throw new Error("Root element with id='root' not found in index.html");
+}
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  </React.StrictMode>
 );

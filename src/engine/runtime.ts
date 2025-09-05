@@ -1,49 +1,53 @@
-/** Core runtime: candidate rows, allowed items per slot, spin, and realize */
-import type { RuntimeDeck } from './loader';
-import type { Row } from '@/types/deck';
+// src/engine/runtime.ts
+// Runtime helpers: find candidate rows and apply a chosen row to the selection.
 
-export type Selection = Record<string, string | undefined>;
+import type { Deck } from "@/types/deck";
+import type { Row } from "@/state/types";
 
-function intersect(a: Set<string>, b: Set<string>) {
-  const out = new Set<string>();
-  for (const x of a) if (b.has(x)) out.add(x);
-  return out;
+// Compute candidate rows that are consistent with the current selection and locks.
+export function candidateRows(
+  deck: Deck,
+  selection: Record<string, string | null>,
+  locked: Set<string>
+): Row[] {
+  // If no deck or rows, return empty.
+  if (!deck || !Array.isArray(deck.rows)) return [];
+
+  // A row is a candidate if, for every locked slot, the row's pick equals the current selection.
+  // Additionally, if a slot has a non-null selection (even if unlocked), we keep rows that match it.
+  const lockedIds = locked ? Array.from(locked) : [];
+
+  return deck.rows.filter((row) => {
+    for (const slotId of Object.keys(selection)) {
+      const sel = selection[slotId];
+      const rowPick = row.pick[slotId];
+
+      // If the slot is locked, the row must match the selection exactly (including null).
+      if (lockedIds.includes(slotId)) {
+        if (rowPick !== sel) return false;
+      } else {
+        // If user has an explicit selection (not null) on an unlocked slot, enforce it too.
+        if (sel !== null && rowPick !== sel) return false;
+      }
+    }
+    return true;
+  }) as Row[];
 }
 
-export function candidateRows(deck: RuntimeDeck, sel: Selection): Set<string> {
-  let set = new Set(deck.index.allRowIds);
-  for (const [slot, itemId] of Object.entries(sel)) {
-    if (!itemId) continue;
-    const rows = new Set(deck.index.rowsBySlotItem[slot][itemId] || []);
-    set = intersect(set, rows);
-    if (set.size === 0) break;
+// Apply a row to the selection, preserving locked slots.
+export function applyRowToSelection(
+  current: Record<string, string | null>,
+  row: Row,
+  locked: Set<string>
+): Record<string, string | null> {
+  const next: Record<string, string | null> = { ...current };
+  const lockedIds = locked ? Array.from(locked) : [];
+
+  for (const slotId of Object.keys(row.pick)) {
+    // Only overwrite if the slot is not locked.
+    if (!lockedIds.includes(slotId)) {
+      next[slotId] = row.pick[slotId] ?? null;
+    }
   }
-  return set;
-}
-
-export function allowedItems(deck: RuntimeDeck, sel: Selection, slot: string): string[] {
-  const cand = candidateRows(deck, sel);
-  const allowed = new Set<string>();
-  for (const rowId of cand) {
-    const r = deck.index.rowById[rowId];
-    allowed.add(r.pick[slot]);
-  }
-  return Array.from(allowed);
-}
-
-export function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-export function spin(deck: RuntimeDeck, sel: Selection, locked: Set<string>) {
-  const cand = Array.from(candidateRows(deck, sel));
-  if (cand.length === 0) return { sel, row: undefined as unknown as Row, ok: false, reason: 'No valid combination' };
-  const row = deck.index.rowById[pickRandom(cand)];
-
-  // Fill unlocked slots from chosen row
-  const next: Selection = { ...sel };
-  for (const slot of Object.keys(deck.index.rowsBySlotItem)) {
-    if (!locked.has(slot)) next[slot] = row.pick[slot];
-  }
-  return { sel: next, row, ok: true as const };
+  return next;
 }

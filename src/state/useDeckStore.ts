@@ -1,93 +1,80 @@
-/** Global state (Zustand): deck, selection, locks, filtering, spin, current row */
-import { create } from 'zustand';
-import type { RuntimeDeck } from '@/engine/loader';
-import { loadDeck } from '@/engine/loader';
-import { allowedItems as _allowedItems, spin as _spin, candidateRows } from '@/engine/runtime';
-import type { Row } from '@/types/deck';
+// src/state/useDeckStore.ts
+// Zustand store for WordRoller: selection state, locks, and spin logic.
 
-type Status = 'idle' | 'loading' | 'ready' | 'error';
+import { create } from "zustand";
+import type { Store } from "./types";
+import { candidateRows, applyRowToSelection } from "@/engine/runtime";
+import type { Deck } from "@/types/deck";
 
-type Store = {
-  deck?: RuntimeDeck;
-  deckId: string;
-  status: Status;
-  error?: string;
+export const useDeckStore = create<Store>()((set, get) => ({
+  // Initially no deck loaded.
+  deck: null,
 
-  selection: Record<string, string | undefined>;
-  locked: Set<string>;
-  currentRow?: Row;
-
-  // actions
-  load: (url: string) => Promise<void>;
-  setSelection: (slot: string, itemId: string) => void;
-  toggleLock: (slot: string) => void;
-  spin: () => void;
-
-  // selectors
-  allowedItemsFor: (slot: string) => string[];
-  labelForItem: (slot: string, itemId: string) => string;
-};
-
-export const useDeckStore = create<Store>((set, get) => ({
-  deck: undefined,
-  deckId: 'es_a1_requests',
-  status: 'idle',
-  error: undefined,
+  // Selection starts empty; will be shaped on load() based on deck slots.
   selection: {},
+
+  // No locks by default.
   locked: new Set<string>(),
-  currentRow: undefined,
 
-  async load(url) {
-    set({ status: 'loading', error: undefined });
-    try {
-      const deck = await loadDeck(url);
-      // initialize selection with the first item of each slot
-      const sel: Record<string, string> = {};
-      for (const s of deck.slots) sel[s.name] = s.items[0]?.id;
+  // No current row yet.
+  currentRowId: null,
 
-      // choose a valid row consistent with default selection
-      const cand = Array.from(candidateRows(deck, sel));
-      const row = cand.length ? deck.index.rowById[cand[0]] : deck.rows[0];
-
-      set({ deck, status: 'ready', selection: sel, currentRow: row });
-    } catch (e: any) {
-      set({ status: 'error', error: e?.message ?? String(e) });
+  // Load a deck and initialize selection to all nulls for known slots.
+  // Important: slot identifier is `slot.name` (not `slot.id`) per your Deck shape.
+  load: (deck: Deck) => {
+    const emptySelection: Record<string, string | null> = {};
+    for (const slot of deck.slots) {
+      emptySelection[slot.name] = null;
     }
+    set({
+      deck,
+      selection: emptySelection,
+      locked: new Set<string>(),
+      currentRowId: null,
+    });
   },
 
-  setSelection(slot, itemId) {
-    const { deck } = get();
-    if (!deck) return;
-    const selection = { ...get().selection, [slot]: itemId };
-    // recompute a consistent currentRow if possible
-    const cand = Array.from(candidateRows(deck, selection));
-    const currentRow = cand.length ? deck.index.rowById[cand[0]] : undefined;
-    set({ selection, currentRow });
+  // Toggle lock for a slot id (identified by slot name).
+  toggleLock: (slotId: string) => {
+    const { locked } = get();
+    const next = new Set<string>(locked);
+    if (next.has(slotId)) next.delete(slotId);
+    else next.add(slotId);
+    set({ locked: next });
   },
 
-  toggleLock(slot) {
-    const locked = new Set(get().locked);
-    locked.has(slot) ? locked.delete(slot) : locked.add(slot);
-    set({ locked });
+  // Set selection for a given slot id (item id or null).
+  setSelection: (slotId: string, itemId: string | null) => {
+    const { selection } = get();
+    set({
+      selection: { ...selection, [slotId]: itemId },
+    });
   },
 
-  spin() {
-    const { deck, selection, locked } = get();
-    if (!deck) return;
-    const res = _spin(deck, selection, locked);
-    if (!res.ok) return; // silent fail; UI remains
-    set({ selection: res.sel, currentRow: res.row });
-  },
+  // Spin into a valid row. Returns true if a row was applied, false otherwise.
+  spin: () => {
+    const state = get();
 
-  allowedItemsFor(slot) {
-    const { deck, selection } = get();
-    if (!deck) return [];
-    return _allowedItems(deck, selection, slot);
-  },
+    // Must have a deck to operate.
+    if (!state.deck) return false;
 
-  labelForItem(slot, itemId) {
-    const { deck } = get();
-    const items = deck?.slots.find((s) => s.name === slot)?.items ?? [];
-    return items.find((i) => i.id === itemId)?.label ?? itemId;
+    // Compute candidate rows consistent with current selection and locks.
+    const candidates = candidateRows(state.deck, state.selection, state.locked);
+
+    // If no candidates, inform caller (UI can toast).
+    if (candidates.length === 0) {
+      return false;
+    }
+
+    // Pick one uniformly at random.
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // Merge row picks into selection, preserving locked slots.
+    const nextSelection = applyRowToSelection(state.selection, chosen, state.locked);
+
+    // Commit selection and the current row id.
+    set({ selection: nextSelection, currentRowId: chosen.id });
+
+    return true;
   },
 }));

@@ -1,20 +1,31 @@
-/** Top-level app shell: loads deck and renders Home page */
-import { useEffect } from 'react';
-import Home from '@/pages/Home';
-import { useDeckStore } from '@/state/useDeckStore';
-import '@/styles/globals.css';
+// src/app/App.tsx
+import React, { useEffect } from "react";
+import Home from "@/pages/Home";
+import { ToastProvider } from "@/components/ui/Toast";
 
-export default function App() {
-  const { load, deck, status, error } = useDeckStore();
-
+const App: React.FC = () => {
   useEffect(() => {
-    // Load the default Spanish A1 deck from /public
-    load('/decks/es_a1_requests.json');
-  }, [load]);
+    console.log("App mounted");
+  }, []);
 
-  if (status === 'loading') return <div className="screen">Cargando…</div>;
-  if (status === 'error') return <div className="screen error">Error: {error}</div>;
-  if (!deck) return null;
+  return (
+    <ToastProvider>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          padding: 16
+        }}
+      >
+        <header style={{ fontSize: 20, fontWeight: 700 }}>
+          WordRoller
+        </header>
+        <Home />
+      </div>
+    </ToastProvider>
+  );
+};
 
-  return <Home />;
-}
+export default App;

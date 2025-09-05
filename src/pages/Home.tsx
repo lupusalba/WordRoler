@@ -1,25 +1,39 @@
-/** Home page: columns (slot wheels), actions, and output */
-import { useDeckStore } from '../state/useDeckStore';
-import Column from '../components/Column';
-import SpinBar from '../components/SpinBar';
-import OutputPane from '../components/OutputPane';
+// src/pages/Home.tsx
+import React, { useEffect } from "react";
+import { useDeckStore } from "@/state/useDeckStore";
 
-export default function Home() {
-  const { deck } = useDeckStore();
-  if (!deck) return null;
+const Home: React.FC = () => {
+  const deck = useDeckStore((s) => s.deck);
+  const load = useDeckStore((s) => s.load);
+
+  useEffect(() => {
+    console.log("Home mounted. Deck:", deck);
+  }, [deck]);
+
+  if (!deck) {
+    return (
+      <div>
+        <p>No deck loaded yet.</p>
+        <button
+          onClick={async () => {
+            const res = await fetch("/decks/es_a1_requests.json");
+            const data = await res.json();
+            load(data);
+          }}
+        >
+          Load Sample Deck
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="screen">
-      <h1 className="title">SlotLang — ES A1</h1>
-
-      <div className="columns">
-        {deck.slots.map((slot: any) => (
-          <Column key={slot.name} slotName={slot.name} />
-        ))}
-      </div>
-
-      <SpinBar />
-      <OutputPane />
+    <div>
+      <p>Deck loaded: {deck.name}</p>
+      <p>Slots: {deck.slots.length}</p>
+      <p>Rows: {deck.rows.length}</p>
     </div>
   );
-}
+};
+
+export default Home;
