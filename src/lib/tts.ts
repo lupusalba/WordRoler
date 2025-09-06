@@ -1,8 +1,13 @@
-/** Minimal TTS wrapper; degrades gracefully if unsupported */
-export function speak(text: string, locale = 'es-ES') {
-  if (!('speechSynthesis' in window)) return { ok: false, reason: 'No TTS in this browser' };
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = locale;
-  window.speechSynthesis.speak(u);
-  return { ok: true as const };
+// src/lib/tts.ts
+// Minimal Web Speech API wrapper with safe fallbacks.
+
+export function speak(text: string, lang: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    console.warn("TTS not supported in this browser.");
+    return;
+  }
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = lang || "es-ES";
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
 }

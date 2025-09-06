@@ -1,32 +1,23 @@
 // src/engine/runtime.ts
-// Runtime helpers: find candidate rows and apply a chosen row to the selection.
+// Add allowedItemsFor alongside candidateRows/applyRowToSelection.
 
 import type { Deck } from "@/types/deck";
 import type { Row } from "@/state/types";
 
-// Compute candidate rows that are consistent with the current selection and locks.
 export function candidateRows(
   deck: Deck,
   selection: Record<string, string | null>,
   locked: Set<string>
 ): Row[] {
-  // If no deck or rows, return empty.
   if (!deck || !Array.isArray(deck.rows)) return [];
-
-  // A row is a candidate if, for every locked slot, the row's pick equals the current selection.
-  // Additionally, if a slot has a non-null selection (even if unlocked), we keep rows that match it.
   const lockedIds = locked ? Array.from(locked) : [];
-
   return deck.rows.filter((row) => {
     for (const slotId of Object.keys(selection)) {
       const sel = selection[slotId];
       const rowPick = row.pick[slotId];
-
-      // If the slot is locked, the row must match the selection exactly (including null).
       if (lockedIds.includes(slotId)) {
         if (rowPick !== sel) return false;
       } else {
-        // If user has an explicit selection (not null) on an unlocked slot, enforce it too.
         if (sel !== null && rowPick !== sel) return false;
       }
     }
@@ -34,7 +25,6 @@ export function candidateRows(
   }) as Row[];
 }
 
-// Apply a row to the selection, preserving locked slots.
 export function applyRowToSelection(
   current: Record<string, string | null>,
   row: Row,
@@ -42,12 +32,30 @@ export function applyRowToSelection(
 ): Record<string, string | null> {
   const next: Record<string, string | null> = { ...current };
   const lockedIds = locked ? Array.from(locked) : [];
-
   for (const slotId of Object.keys(row.pick)) {
-    // Only overwrite if the slot is not locked.
     if (!lockedIds.includes(slotId)) {
       next[slotId] = row.pick[slotId] ?? null;
     }
   }
   return next;
+}
+
+// Compute which item ids are allowed for a given slot, given current constraints.
+// An item is allowed if there exists at least one candidate row whose pick for slotId equals that item.
+export function allowedItemsFor(
+  deck: Deck,
+  selection: Record<string, string | null>,
+  locked: Set<string>,
+  slotId: string
+): Set<string> {
+  const allowed = new Set<string>();
+  if (!deck) return allowed;
+  const candidates = candidateRows(deck, selection, locked);
+  for (const row of candidates) {
+    const item = row.pick[slotId];
+    if (typeof item === "string") {
+      allowed.add(item);
+    }
+  }
+  return allowed;
 }

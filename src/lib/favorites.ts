@@ -1,12 +1,51 @@
-/** Favorites persistence in localStorage */
-const KEY = 'slotlang:favs:v1';
-export type Fav = { deckId: string; rowId: string; surface: string; savedAt: number };
+// src/lib/favorites.ts
+// LocalStorage-backed favorites: save, list, remove.
 
-export function saveFavorite(f: Fav) {
-  const arr: Fav[] = JSON.parse(localStorage.getItem(KEY) || '[]');
-  arr.unshift(f);
-  localStorage.setItem(KEY, JSON.stringify(arr.slice(0, 200)));
+export type Favorite = {
+  id: string;                  // row id
+  surface: string;             // rendered sentence
+  ipa?: string;                // optional IPA
+  deckKey: string;             // e.g., "es@1.0.0"
+  savedAt: number;             // epoch ms
+};
+
+const KEY = "wordroller.favorites";
+
+function readAll(): Favorite[] {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Favorite[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
 }
-export function listFavorites(): Fav[] {
-  return JSON.parse(localStorage.getItem(KEY) || '[]');
+
+function writeAll(list: Favorite[]) {
+  localStorage.setItem(KEY, JSON.stringify(list));
+}
+
+export function listFavorites(): Favorite[] {
+  return readAll().sort((a, b) => b.savedAt - a.savedAt);
+}
+
+export function addFavorite(fav: Favorite) {
+  const all = readAll();
+  // De-dup per deckKey+row id
+  const exists = all.some((f) => f.id === fav.id && f.deckKey === fav.deckKey);
+  if (exists) return;
+  all.push(fav);
+  writeAll(all);
+}
+
+export function removeFavorite(deckKey: string, rowId: string) {
+  const all = readAll().filter((f) => !(f.deckKey === deckKey && f.id === rowId));
+  writeAll(all);
+}
+
+export function clearFavoritesForDeck(deckKey: string) {
+  const all = readAll().filter((f) => f.deckKey !== deckKey);
+  writeAll(all);
 }
